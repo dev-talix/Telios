@@ -105,7 +105,11 @@ export default function App() {
     <BrowserRouter>
       <div style={{ display: 'flex', minHeight: '100vh' }}>
         <Sidebar />
-        <main style={{ flex: 1, overflow: 'auto', minWidth: 0 }}>
+        <main style={{
+          flex: 1, overflow: 'auto', minWidth: 0,
+          backgroundImage: 'radial-gradient(circle, rgba(67,97,238,0.18) 1px, transparent 1px)',
+          backgroundSize: '24px 24px',
+        }}>
           <Routes>
             <Route path="/" element={<Dashboard />} />
             <Route path="/agents" element={<Agents />} />
