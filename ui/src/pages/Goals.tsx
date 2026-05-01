@@ -1,39 +1,57 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, Target, CheckCircle } from "lucide-react";
+import { Plus, Target, CheckCircle2, Circle } from "lucide-react";
 import { api, type Goal } from "../lib/api";
 
-function GoalRow({ goal, tasks, children, onToggle, onDelete }: {
-  goal: Goal;
-  tasks: number;
-  children?: React.ReactNode;
-  onToggle: () => void;
-  onDelete: () => void;
+function GoalRow({ goal, taskCount, depth = 0, onToggle, onDelete }: {
+  goal: Goal; taskCount: number; depth?: number;
+  onToggle: () => void; onDelete: () => void;
 }) {
+  const done = goal.status === "completed";
+
   return (
-    <div className="space-y-2">
-      <div className="card flex items-start gap-3 group">
-        <div className={`mt-0.5 p-1.5 rounded-lg ${goal.status === "completed" ? "bg-green-900" : "bg-brand-500/10"}`}>
-          {goal.status === "completed"
-            ? <CheckCircle size={14} className="text-green-400" />
-            : <Target size={14} className="text-brand-400" />
-          }
+    <div style={{
+      display: 'flex', alignItems: 'center', gap: 12,
+      padding: '11px 0', paddingLeft: depth * 24,
+      borderBottom: '1px solid #12161f',
+    }}
+      onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.01)')}
+      onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
+
+      <button onClick={onToggle} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, flexShrink: 0, display: 'flex', color: done ? '#34d399' : '#334155' }}>
+        {done ? <CheckCircle2 size={16} /> : <Circle size={16} />}
+      </button>
+
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontSize: 13.5, color: done ? '#334155' : '#cbd5e1', fontWeight: 500, textDecoration: done ? 'line-through' : 'none', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          {goal.title}
         </div>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2">
-            <span className={`font-medium text-sm ${goal.status === "completed" ? "line-through text-gray-500" : "text-white"}`}>{goal.title}</span>
-            {tasks > 0 && <span className="badge bg-gray-800 text-gray-400">{tasks} tasks</span>}
+        {goal.description && (
+          <div style={{ fontSize: 12, color: '#263248', marginTop: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {goal.description}
           </div>
-          {goal.description && <p className="text-xs text-gray-500 mt-0.5">{goal.description}</p>}
-        </div>
-        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-          <button className="btn-ghost text-xs" onClick={onToggle}>
-            {goal.status === "active" ? "Complete" : "Reopen"}
-          </button>
-          <button className="btn-danger text-xs" onClick={onDelete}>×</button>
-        </div>
+        )}
       </div>
-      {children && <div className="ml-8 space-y-2">{children}</div>}
+
+      {taskCount > 0 && (
+        <span style={{ fontSize: 11.5, color: '#2d3a52', flexShrink: 0 }}>
+          {taskCount} task{taskCount > 1 ? 's' : ''}
+        </span>
+      )}
+
+      <span style={{
+        fontSize: 11, padding: '2px 8px', borderRadius: 20, flexShrink: 0,
+        background: done ? 'rgba(52,211,153,0.08)' : 'rgba(67,97,238,0.08)',
+        color: done ? '#34d399' : '#4361ee',
+      }}>
+        {done ? 'done' : 'active'}
+      </span>
+
+      <button onClick={onDelete} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#1e2a3a', fontSize: 16, padding: '0 4px', flexShrink: 0, lineHeight: 1 }}
+        onMouseEnter={e => (e.currentTarget.style.color = '#f87171')}
+        onMouseLeave={e => (e.currentTarget.style.color = '#1e2a3a')}>
+        ×
+      </button>
     </div>
   );
 }
@@ -43,34 +61,35 @@ function NewGoalModal({ companyId, goals, onClose }: { companyId: string; goals:
   const [form, setForm] = useState({ title: "", description: "", parent_id: "" });
 
   const create = useMutation({
-    mutationFn: () => api.goals.create({
-      ...form,
-      company_id: companyId,
-      parent_id: form.parent_id || undefined,
-    }),
+    mutationFn: () => api.goals.create({ ...form, company_id: companyId, parent_id: form.parent_id || undefined }),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["goals"] }); onClose(); },
   });
 
   const set = (k: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) =>
-    setForm((f) => ({ ...f, [k]: e.target.value }));
+    setForm(f => ({ ...f, [k]: e.target.value }));
 
   return (
-    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
-      <div className="bg-gray-900 border border-gray-800 rounded-xl w-full max-w-md p-6 space-y-4">
-        <h2 className="font-semibold text-white">New goal</h2>
-        <div><label className="label">Title *</label><input className="input" value={form.title} onChange={set("title")} placeholder="Ship payment integrations" /></div>
-        <div><label className="label">Description</label><textarea className="input h-20 resize-none" value={form.description} onChange={set("description")} /></div>
-        <div>
-          <label className="label">Parent goal</label>
-          <select className="input" value={form.parent_id} onChange={set("parent_id") as React.ChangeEventHandler<HTMLSelectElement>}>
-            <option value="">— Top level —</option>
-            {goals.map((g) => <option key={g.id} value={g.id}>{g.title}</option>)}
-          </select>
+    <div className="modal-backdrop" onClick={e => e.target === e.currentTarget && onClose()}>
+      <div className="modal" style={{ maxWidth: 440 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 }}>
+          <h2 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: '#f1f5f9' }}>New goal</h2>
+          <button className="btn-ghost" onClick={onClose} style={{ padding: 6 }}>✕</button>
         </div>
-        <div className="flex gap-2 pt-2">
-          <button className="btn-ghost flex-1 justify-center" onClick={onClose}>Cancel</button>
-          <button className="btn-primary flex-1 justify-center" onClick={() => create.mutate()} disabled={!form.title || create.isPending}>
-            {create.isPending ? "Creating…" : "Create goal"}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div><label className="label">Title *</label><input className="input" value={form.title} onChange={set("title")} placeholder="Ship payment integrations" /></div>
+          <div><label className="label">Description</label><textarea className="input" style={{ height: 72, resize: 'none' }} value={form.description} onChange={set("description")} /></div>
+          <div>
+            <label className="label">Parent goal</label>
+            <select className="input" value={form.parent_id} onChange={set("parent_id") as React.ChangeEventHandler<HTMLSelectElement>}>
+              <option value="">— Top level —</option>
+              {goals.map(g => <option key={g.id} value={g.id}>{g.title}</option>)}
+            </select>
+          </div>
+        </div>
+        <div style={{ display: 'flex', gap: 8, marginTop: 18, paddingTop: 14, borderTop: '1px solid #1a1f2e' }}>
+          <button className="btn-ghost" onClick={onClose} style={{ flex: 1, justifyContent: 'center' }}>Cancel</button>
+          <button className="btn-primary" onClick={() => create.mutate()} disabled={!form.title || create.isPending} style={{ flex: 1, justifyContent: 'center' }}>
+            {create.isPending ? 'Creating…' : 'Create goal'}
           </button>
         </div>
       </div>
@@ -86,7 +105,7 @@ export default function Goals() {
   const { data: company } = useQuery({ queryKey: ["company"], queryFn: api.company.get });
 
   const tasksByGoal = new Map<string, number>();
-  tasks?.forEach((t) => { if (t.goal_id) tasksByGoal.set(t.goal_id, (tasksByGoal.get(t.goal_id) ?? 0) + 1); });
+  tasks?.forEach(t => { if (t.goal_id) tasksByGoal.set(t.goal_id, (tasksByGoal.get(t.goal_id) ?? 0) + 1); });
 
   const toggle = useMutation({
     mutationFn: (g: Goal) => api.goals.update(g.id, { status: g.status === "active" ? "completed" : "active" }),
@@ -98,46 +117,62 @@ export default function Goals() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["goals"] }),
   });
 
-  const topLevel = goals?.filter((g) => !g.parent_id) ?? [];
-  const children = (parentId: string) => goals?.filter((g) => g.parent_id === parentId) ?? [];
+  const topLevel = goals?.filter(g => !g.parent_id) ?? [];
+  const children = (id: string) => goals?.filter(g => g.parent_id === id) ?? [];
+  const active = topLevel.filter(g => g.status === "active").length;
+  const done = topLevel.filter(g => g.status === "completed").length;
 
   return (
-    <div className="p-6 space-y-4">
-      <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold text-white">Goals</h1>
-        <button className="btn-primary" onClick={() => setShowNew(true)}>
-          <Plus size={14} /> New goal
+    <div style={{ padding: '36px 40px', maxWidth: 800 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 32 }}>
+        <div>
+          <h1 style={{ fontSize: 22, fontWeight: 700, color: '#f1f5f9', margin: 0, letterSpacing: '-0.03em' }}>Goals</h1>
+          <p style={{ fontSize: 13, color: '#334155', marginTop: 5 }}>
+            {active} active{done ? `, ${done} completed` : ''}
+          </p>
+        </div>
+        <button className="btn-primary" onClick={() => setShowNew(true)} style={{ fontSize: 13 }}>
+          <Plus size={13} /> New goal
         </button>
       </div>
 
-      {!topLevel.length && (
-        <div className="card text-center py-12 text-gray-500">
-          <Target size={32} className="mx-auto mb-3 opacity-30" />
-          <p className="text-sm">No goals yet. Seed the Talix template or create one.</p>
+      {/* Column headers */}
+      {!!topLevel.length && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, paddingBottom: 8, borderBottom: '1px solid #1a1f2e' }}>
+          <div style={{ width: 16, flexShrink: 0 }} />
+          <div style={{ flex: 1, fontSize: 11, fontWeight: 600, color: '#2d3a52', letterSpacing: '0.06em', textTransform: 'uppercase' }}>Goal</div>
+          <div style={{ fontSize: 11, fontWeight: 600, color: '#2d3a52', letterSpacing: '0.06em', textTransform: 'uppercase', width: 60, textAlign: 'right', flexShrink: 0 }}>Tasks</div>
+          <div style={{ fontSize: 11, fontWeight: 600, color: '#2d3a52', letterSpacing: '0.06em', textTransform: 'uppercase', width: 56, flexShrink: 0 }}>Status</div>
+          <div style={{ width: 24, flexShrink: 0 }} />
         </div>
       )}
 
-      <div className="space-y-3">
-        {topLevel.map((g) => (
+      {!topLevel.length && (
+        <div style={{ textAlign: 'center', padding: '52px 0', color: '#1e2a3a', fontSize: 13 }}>
+          No goals yet — create one or seed the Talix template from Dashboard.
+        </div>
+      )}
+
+      {topLevel.map(g => (
+        <div key={g.id}>
           <GoalRow
-            key={g.id}
             goal={g}
-            tasks={tasksByGoal.get(g.id) ?? 0}
+            taskCount={tasksByGoal.get(g.id) ?? 0}
             onToggle={() => toggle.mutate(g)}
-            onDelete={() => { if (confirm("Delete goal?")) del.mutate(g.id); }}
-          >
-            {children(g.id).map((child) => (
-              <GoalRow
-                key={child.id}
-                goal={child}
-                tasks={tasksByGoal.get(child.id) ?? 0}
-                onToggle={() => toggle.mutate(child)}
-                onDelete={() => { if (confirm("Delete goal?")) del.mutate(child.id); }}
-              />
-            ))}
-          </GoalRow>
-        ))}
-      </div>
+            onDelete={() => { if (confirm('Delete goal?')) del.mutate(g.id); }}
+          />
+          {children(g.id).map(child => (
+            <GoalRow
+              key={child.id}
+              goal={child}
+              taskCount={tasksByGoal.get(child.id) ?? 0}
+              depth={1}
+              onToggle={() => toggle.mutate(child)}
+              onDelete={() => { if (confirm('Delete goal?')) del.mutate(child.id); }}
+            />
+          ))}
+        </div>
+      ))}
 
       {showNew && company && <NewGoalModal companyId={company.id} goals={goals ?? []} onClose={() => setShowNew(false)} />}
     </div>

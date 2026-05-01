@@ -2,68 +2,83 @@ import { useQuery } from "@tanstack/react-query";
 import { AlertTriangle } from "lucide-react";
 import { api } from "../lib/api";
 
-function BudgetBar({ spent, total }: { spent: number; total: number }) {
-  if (total <= 0) return <span className="text-xs text-gray-600">No limit</span>;
-  const pct = Math.min(100, (spent / total) * 100);
-  const color = pct >= 90 ? "bg-red-500" : pct >= 70 ? "bg-yellow-500" : "bg-brand-500";
-
-  return (
-    <div className="space-y-1">
-      <div className="flex justify-between text-xs text-gray-400">
-        <span>${spent.toFixed(3)} spent</span>
-        <span>${total.toFixed(2)} limit</span>
-      </div>
-      <div className="h-2 bg-gray-800 rounded-full overflow-hidden">
-        <div className={`h-full rounded-full transition-all ${color}`} style={{ width: `${pct}%` }} />
-      </div>
-    </div>
-  );
-}
-
 export default function Budgets() {
   const { data: budgets } = useQuery({ queryKey: ["budgets"], queryFn: () => api.budgets.list() });
 
-  const overBudget = budgets?.filter((b) => b.over_budget) ?? [];
   const totalSpent = budgets?.reduce((s, b) => s + b.spent_usd, 0) ?? 0;
+  const overBudget = budgets?.filter(b => b.over_budget) ?? [];
 
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold text-white">Budgets</h1>
-        <div className="text-sm text-gray-400">
-          Total this month: <span className="text-white font-semibold">${totalSpent.toFixed(3)}</span>
-        </div>
+    <div style={{ padding: '36px 40px', maxWidth: 800 }}>
+      <div style={{ marginBottom: 32 }}>
+        <h1 style={{ fontSize: 22, fontWeight: 700, color: '#f1f5f9', margin: 0, letterSpacing: '-0.03em' }}>Budgets</h1>
+        <p style={{ fontSize: 13, color: '#334155', marginTop: 5 }}>
+          Total this month: <span style={{ color: '#94a3b8', fontWeight: 600 }}>${totalSpent.toFixed(4)}</span>
+        </p>
       </div>
 
       {overBudget.length > 0 && (
-        <div className="card border-red-800 bg-red-950/30">
-          <div className="flex items-center gap-2 text-red-400 text-sm">
-            <AlertTriangle size={14} />
-            {overBudget.length} agent{overBudget.length > 1 ? "s are" : " is"} over budget: {overBudget.map((b) => b.name).join(", ")}
-          </div>
+        <div style={{ marginBottom: 24, padding: '12px 16px', borderRadius: 8, background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.18)', display: 'flex', alignItems: 'center', gap: 10, fontSize: 13, color: '#f87171' }}>
+          <AlertTriangle size={14} style={{ flexShrink: 0 }} />
+          Over budget: {overBudget.map(b => b.name).join(', ')}
         </div>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-        {budgets?.map((b) => (
-          <div key={b.agent_id} className={`card space-y-3 ${b.over_budget ? "border-red-800" : ""}`}>
-            <div className="flex items-center justify-between">
-              <span className="font-medium text-sm text-white">{b.name}</span>
-              {b.over_budget && <AlertTriangle size={14} className="text-red-400" />}
-            </div>
-            <BudgetBar spent={b.spent_usd} total={b.budget_monthly_usd} />
-            <div className="text-xs text-gray-600">
-              {b.spent_tokens.toLocaleString()} tokens · period {b.period ?? "current"}
-            </div>
-          </div>
-        ))}
-      </div>
+      {/* Header row */}
+      {!!budgets?.length && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 16, paddingBottom: 8, borderBottom: '1px solid #1a1f2e', marginBottom: 0 }}>
+          <div style={{ flex: 1, fontSize: 11, fontWeight: 600, color: '#2d3a52', letterSpacing: '0.06em', textTransform: 'uppercase' }}>Agent</div>
+          <div style={{ width: 200, fontSize: 11, fontWeight: 600, color: '#2d3a52', letterSpacing: '0.06em', textTransform: 'uppercase' }}>Usage</div>
+          <div style={{ width: 80, fontSize: 11, fontWeight: 600, color: '#2d3a52', letterSpacing: '0.06em', textTransform: 'uppercase', textAlign: 'right' }}>Spent</div>
+          <div style={{ width: 80, fontSize: 11, fontWeight: 600, color: '#2d3a52', letterSpacing: '0.06em', textTransform: 'uppercase', textAlign: 'right' }}>Limit</div>
+          <div style={{ width: 60, fontSize: 11, fontWeight: 600, color: '#2d3a52', letterSpacing: '0.06em', textTransform: 'uppercase', textAlign: 'right' }}>Tokens</div>
+        </div>
+      )}
 
       {!budgets?.length && (
-        <div className="card text-center py-12 text-gray-500">
-          <p className="text-sm">No budget data yet. Agents will appear here once they start running.</p>
+        <div style={{ textAlign: 'center', padding: '52px 0', color: '#1e2a3a', fontSize: 13 }}>
+          No budget data yet. Agents appear here once they run.
         </div>
       )}
+
+      {budgets?.map(b => {
+        const pct = b.budget_monthly_usd > 0 ? Math.min(100, (b.spent_usd / b.budget_monthly_usd) * 100) : 0;
+        const barColor = pct >= 90 ? '#ef4444' : pct >= 70 ? '#f97316' : '#4361ee';
+
+        return (
+          <div key={b.agent_id} style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '13px 0', borderBottom: '1px solid #12161f' }}>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ fontSize: 13.5, color: '#cbd5e1', fontWeight: 500 }}>{b.name}</span>
+                {b.over_budget && <AlertTriangle size={12} style={{ color: '#f87171' }} />}
+              </div>
+            </div>
+
+            {/* Progress bar */}
+            <div style={{ width: 200, flexShrink: 0 }}>
+              {b.budget_monthly_usd > 0 ? (
+                <div style={{ height: 4, background: '#1a1f2e', borderRadius: 2, overflow: 'hidden' }}>
+                  <div style={{ height: '100%', width: `${pct}%`, background: barColor, borderRadius: 2, transition: 'width 0.3s' }} />
+                </div>
+              ) : (
+                <span style={{ fontSize: 11.5, color: '#263248' }}>No limit</span>
+              )}
+            </div>
+
+            <div style={{ width: 80, textAlign: 'right', fontSize: 13, color: b.over_budget ? '#f87171' : '#475569', fontVariantNumeric: 'tabular-nums', fontWeight: 500 }}>
+              ${b.spent_usd.toFixed(4)}
+            </div>
+
+            <div style={{ width: 80, textAlign: 'right', fontSize: 13, color: '#2d3a52', fontVariantNumeric: 'tabular-nums' }}>
+              {b.budget_monthly_usd > 0 ? `$${b.budget_monthly_usd.toFixed(2)}` : '—'}
+            </div>
+
+            <div style={{ width: 60, textAlign: 'right', fontSize: 12, color: '#263248', fontVariantNumeric: 'tabular-nums' }}>
+              {b.spent_tokens.toLocaleString()}
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 }
