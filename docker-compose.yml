@@ -1,0 +1,17 @@
+services:
+  telos:
+    build: .
+    ports:
+      - "3100:3100"
+    volumes:
+      - ./data:/app/data
+    environment:
+      - TELOS_PORT=3100
+      - TELOS_DATA_DIR=/app/data
+      - TELOS_UI_DIR=/app/ui/dist
+      - TELOS_OPEN_BROWSER=false
+      - HERMES_API_URL=${HERMES_API_URL:-http://host.docker.internal:8642}
+      - CLAUDE_CLI_PATH=${CLAUDE_CLI_PATH:-claude}
+    restart: unless-stopped
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
